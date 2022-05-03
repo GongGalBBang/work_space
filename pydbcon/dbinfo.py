@@ -1,4 +1,4 @@
-db_
+db_host = ""
 db_username = "admin"
 db_password = ""
 db_name = ""
