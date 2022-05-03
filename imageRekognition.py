@@ -12,7 +12,9 @@ def detect_labels(photo, bucket):
     response = client.detect_labels(Image={'S3Object':{'Bucket':bucket,'Name':photo}}, MinConfidence=95)
     
     #인원수 세어요
-    countPerson = 0;
+    countPerson = 0
+    #좌표값을 저장해요
+    coordinate = [] 
     
     print('Detected labels for ' + photo) 
     print()  
@@ -30,6 +32,7 @@ def detect_labels(photo, bucket):
             if(label['Name'] == 'Person'):
                 countPerson = countPerson + 1
                 print ("countPerson : ", countPerson)
+                coordinate.append([instance['BoundingBox']['Top'], instance['BoundingBox']['Left'], instance['BoundingBox']['Width'], instance['BoundingBox']['Height']])
                 
             print ("  Bounding box")
             print ("    Top: " + str(instance['BoundingBox']['Top']))
@@ -44,7 +47,7 @@ def detect_labels(photo, bucket):
             print ("   " + parent['Name'])
         print ("----------")
         print ()
-    return len(response['Labels']), countPerson
+    return len(response['Labels']), countPerson, coordinate
 
 #main 함수
 def lambda_handler(event, context):
@@ -53,30 +56,26 @@ def lambda_handler(event, context):
     key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'], encoding='utf-8')
     
     #파일명, 버킷명을 입력하고 rekognition 호출
-    #리턴값은 라벨 갯수, 사람(person) 수
-    label_count, person_count = detect_labels(key, bucket)
+    #리턴값은 라벨 갯수, 사람(person) 수, 검출 좌표 저장 리스트
+    label_count, person_count, coordinate = detect_labels(key, bucket)
     
     #검출 라벨 갯수 출력 (기본 코드)
     print("Labels detected: " + str(label_count))
     
-    #이미지 업로드 시간(=이벤트 발생 시간)
-    today = datetime.datetime.today()
-    #년, 월, 일, 시, 분 이 들어간 리스트로 일단 만들어 둠. (UTC)
-    imageUploadtime = [today.year, today.month, today.day, today.hour, today.minute]
     
     #이미지 이름에서 날짜, 시간 부분 문자열 가져오기
     imageDate = key[0:8]
     imageHour = key[9:11]
     imageminute = key[11:13]
     
-    
+
     #변수에 저장된 내용들▼
     #key = 파일 명
     #person_count = 이미지에서 검출된 인원 수 !
-    #imageDate = 이미지 촬영 날짜
-    #imageHour = 이미지 촬영 시간
-    #imageminute = 이미지 촬영 분
+    #imageDate = 이미지 촬영 날짜(date YYYYMMDD)
+    #imageHour = 이미지 촬영 시간(hour)
+    #imageminute = 이미지 촬영 분(min)
+    #coordinate = 좌표값 저장한 리스트 [[top, left, width, height], [top, left, width, height], ...]
     
-    #좌표값 추가 예정
     #장소 정보는 테이블 명 달리해서 전송
     #시간, 인원수, 장소 순
