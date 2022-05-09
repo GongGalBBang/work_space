@@ -4,6 +4,7 @@
 
 import boto3
 import datetime
+import urllib.parse
 
 def detect_labels(photo, bucket):
     client=boto3.client('rekognition')
@@ -28,11 +29,19 @@ def detect_labels(photo, bucket):
         #라벨의 인스턴스들 (각 개체별 box 좌표값을 프린트 함)
         for instance in label['Instances']:
             
-            #person이면 person count++; 프린트
+            #person이면
             if(label['Name'] == 'Person'):
+                #인원수 +1
                 countPerson = countPerson + 1
                 print ("countPerson : ", countPerson)
-                coordinate.append([instance['BoundingBox']['Top'], instance['BoundingBox']['Left'], instance['BoundingBox']['Width'], instance['BoundingBox']['Height']])
+                
+                #비율로 표기된 좌표, 높이, 너비 값에 100을 곱하고 소수점 아래 버림
+                top = int(instance['BoundingBox']['Top'] * 100)
+                left = int(instance['BoundingBox']['Left'] * 100)
+                width = int(instance['BoundingBox']['Width'] * 100)
+                height = int(instance['BoundingBox']['Height'] * 100)
+                #좌표 리스트에 추가
+                coordinate.append([top, left, width, height])
                 
             print ("  Bounding box")
             print ("    Top: " + str(instance['BoundingBox']['Top']))
@@ -68,7 +77,11 @@ def lambda_handler(event, context):
     imageHour = key[9:11]
     imageminute = key[11:13]
     
-
+    #결과값 출력
+    print("person_count : ", person_count)
+    print("image Date, Hour, minute : ", imageDate, imageHour, imageminute)
+    print("coordinate : ", coordinate)
+    
     #변수에 저장된 내용들▼
     #key = 파일 명
     #person_count = 이미지에서 검출된 인원 수 !
