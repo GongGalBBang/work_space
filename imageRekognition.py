@@ -1,27 +1,36 @@
 #Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #PDX-License-Identifier: MIT-0 (For details, see https://github.com/awsdocs/amazon-rekognition-developer-guide/blob/master/LICENSE-SAMPLECODE.)
+
+
 import boto3
 import datetime
 import urllib.parse
+
 import pymysql
-import json
+
 
 def connect_RDS():
-    with open("dbinfo.json", "r") as f:
-        dbinfo = json.load(f)
+    print("start connect_RDS function")
+    host = "*****"
+    port = *****
+    username = "*****"
+    database = "*****"
+    password = "*****"
 
     conn = pymysql.connect(
-        host=dbinfo['host'],
-        user=dbinfo['username'],
-        passwd=dbinfo['password'],
-        db=dbinfo['database'],
-        port=dbinfo['port']
+        host=host,
+        user=username,
+        passwd=password,
+        db=database,
+        port=port
     )
     return conn
 
 def send_RDS(conn, person_count, imageDateTime,coordinate):
+    print("start send_RDS function")
     cur = conn.cursor()
     cur.execute("INSERT INTO Jullulim (person_count, Time, coordinate) VALUES (%s,%s,%s);",(person_count, imageDateTime, coordinate))
+    #cur.execute("INSERT INTO Jullulim (person_count, Time) VALUES (%s,%s);",(person_count, imageDateTime))
     conn.commit()
 
 
@@ -86,13 +95,15 @@ def lambda_handler(event, context):
     #파일명, 버킷명을 입력하고 rekognition 호출
     #리턴값은 라벨 갯수, 사람(person) 수, 검출 좌표 저장 리스트
     label_count, person_count, coordinate = detect_labels(key, bucket)
+    #받은 리스트 문자열로 변환
+    coordinate = str(coordinate)
     
     #검출 라벨 갯수 출력 (기본 코드)
     print("Labels detected: " + str(label_count))
     
     
     #이미지 이름에서 날짜, 시간 부분 문자열 가져오기
-    imageDateTime = key
+    imageDateTime = key[0:13]
     imageDate = key[0:8]
     imageHour = key[9:11]
     imageminute = key[11:13]
@@ -101,14 +112,13 @@ def lambda_handler(event, context):
     print("person_count : ", person_count)
     print("image Date, Hour, minute : ", imageDate, imageHour, imageminute)
     print("coordinate : ", coordinate)
-    try:
-        send_RDS(conn, person_count, imageDateTime, coordinate)
-    except:
-        conn = connect_RDS()
-        send_RDS(conn, person_count, imageDateTime, coordinate)
-
-
-
+    
+    # IN LAMDA_HANDLER
+    conn = connect_RDS()
+    print("conn type : ", type(conn))
+    print("conn : ", conn)
+    send_RDS(conn, person_count, imageDateTime, coordinate)
+    print("coordinate type : ", type(coordinate))
     
     #변수에 저장된 내용들▼
     #key = 파일 명
@@ -116,7 +126,7 @@ def lambda_handler(event, context):
     #imageDate = 이미지 촬영 날짜(date YYYYMMDD)
     #imageHour = 이미지 촬영 시간(hour)
     #imageminute = 이미지 촬영 분(min)
-    #coordinate = 좌표값 저장한 리스트 [[top, left, width, height], [top, left, width, height], ...]
+    #coordinate = 좌표값 저장한 리스트 str '[[top, left, width, height], [top, left, width, height], ...]'
     
     #장소 정보는 테이블 명 달리해서 전송
     #시간, 인원수, 장소 순
