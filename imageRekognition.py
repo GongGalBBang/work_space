@@ -1,10 +1,29 @@
 #Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #PDX-License-Identifier: MIT-0 (For details, see https://github.com/awsdocs/amazon-rekognition-developer-guide/blob/master/LICENSE-SAMPLECODE.)
-
-
 import boto3
 import datetime
 import urllib.parse
+import pymysql
+import json
+
+def connect_RDS():
+    with open("dbinfo.json", "r") as f:
+        dbinfo = json.load(f)
+
+    conn = pymysql.connect(
+        host=dbinfo['host'],
+        user=dbinfo['username'],
+        passwd=dbinfo['password'],
+        db=dbinfo['database'],
+        port=dbinfo['port']
+    )
+    return conn
+
+def send_RDS(conn, person_count, imageDateTime,coordinate):
+    cur = conn.cursor()
+    cur.execute("INSERT INTO Jullulim (person_count, Time, coordinate) VALUES (%s,%s,%s);",(person_count, imageDateTime, coordinate))
+    conn.commit()
+
 
 def detect_labels(photo, bucket):
     client=boto3.client('rekognition')
@@ -73,6 +92,7 @@ def lambda_handler(event, context):
     
     
     #이미지 이름에서 날짜, 시간 부분 문자열 가져오기
+    imageDateTime = key
     imageDate = key[0:8]
     imageHour = key[9:11]
     imageminute = key[11:13]
@@ -81,6 +101,14 @@ def lambda_handler(event, context):
     print("person_count : ", person_count)
     print("image Date, Hour, minute : ", imageDate, imageHour, imageminute)
     print("coordinate : ", coordinate)
+    try:
+        send_RDS(conn, person_count, imageDateTime, coordinate)
+    except:
+        conn = connect_RDS()
+        send_RDS(conn, person_count, imageDateTime, coordinate)
+
+
+
     
     #변수에 저장된 내용들▼
     #key = 파일 명
