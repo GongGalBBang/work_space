@@ -1,5 +1,6 @@
 #Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #PDX-License-Identifier: MIT-0 (For details, see https://github.com/awsdocs/amazon-rekognition-developer-guide/blob/master/LICENSE-SAMPLECODE.)
+#detect_labels함수 aws guide코드 사용하였음
 
 
 import boto3
@@ -30,7 +31,6 @@ def send_RDS(conn, person_count, imageDateTime,coordinate):
     print("start send_RDS function")
     cur = conn.cursor()
     cur.execute("INSERT INTO Jullulim (person_count, Time, coordinate) VALUES (%s,%s,%s);",(person_count, imageDateTime, coordinate))
-    #cur.execute("INSERT INTO Jullulim (person_count, Time) VALUES (%s,%s);",(person_count, imageDateTime))
     conn.commit()
 
 
@@ -68,9 +68,16 @@ def detect_labels(photo, bucket):
                 left = int(instance['BoundingBox']['Left'] * 100)
                 width = int(instance['BoundingBox']['Width'] * 100)
                 height = int(instance['BoundingBox']['Height'] * 100)
+                
                 #좌표 리스트에 추가
                 coordinate.append([top, left, width, height])
-                
+            
+                #화면의 50% 이상 면적 차지중이라면
+                if(width * height > 5000):
+                    #분석을 마치고 인원수에 -1값을 넣어 return함
+                    return len(response['Labels']), -1, coordinate
+                    
+                    
             print ("  Bounding box")
             print ("    Top: " + str(instance['BoundingBox']['Top']))
             print ("    Left: " + str(instance['BoundingBox']['Left']))
@@ -88,13 +95,14 @@ def detect_labels(photo, bucket):
 
 #main 함수
 def lambda_handler(event, context):
-    #이벤트(지정한 S3에 새 이미지 업로드)발생 시 발생 패킷, 업로드 이미지명을 가져온다.
+    #이벤트(지정한 S3에 새 이미지 업로드)발생 시 발생 버킷, 업로드 이미지명을 가져온다.
     bucket = event['Records'][0]['s3']['bucket']['name']
     key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'], encoding='utf-8')
     
     #파일명, 버킷명을 입력하고 rekognition 호출
     #리턴값은 라벨 갯수, 사람(person) 수, 검출 좌표 저장 리스트
     label_count, person_count, coordinate = detect_labels(key, bucket)
+    
     #받은 리스트 문자열로 변환
     coordinate = str(coordinate)
     
@@ -103,29 +111,32 @@ def lambda_handler(event, context):
     
     
     #이미지 이름에서 날짜, 시간 부분 문자열 가져오기
-    imageDateTime = key[0:13]
-    imageDate = key[0:8]
-    imageHour = key[9:11]
-    imageminute = key[11:13]
+    imageYear = int(key[0:4])
+    imageMonth = int(key[4:6])
+    imageDay = int(key[6:8])
+    imageHour = int(key[9:11])
+    imageminute = int(key[11:13])
+    #dateitme 객체 생성
+    imageDateTime = datetime.datetime(imageYear, imageMonth, imageDay, imageHour, imageminute)
     
-    #결과값 출력
+    #detect_labels 함수 결과값 출력
     print("person_count : ", person_count)
-    print("image Date, Hour, minute : ", imageDate, imageHour, imageminute)
+    print("image Datetime : ", imageDateTime)
     print("coordinate : ", coordinate)
     
-    # IN LAMDA_HANDLER
+    # IN LAMDA_HANDLER, RDS와의 연결 및 전송
     conn = connect_RDS()
     print("conn type : ", type(conn))
     print("conn : ", conn)
     send_RDS(conn, person_count, imageDateTime, coordinate)
     print("coordinate type : ", type(coordinate))
     
+
+    
     #변수에 저장된 내용들▼
     #key = 파일 명
     #person_count = 이미지에서 검출된 인원 수 !
-    #imageDate = 이미지 촬영 날짜(date YYYYMMDD)
-    #imageHour = 이미지 촬영 시간(hour)
-    #imageminute = 이미지 촬영 분(min)
+    #imageDateTime 
     #coordinate = 좌표값 저장한 리스트 str '[[top, left, width, height], [top, left, width, height], ...]'
     
     #장소 정보는 테이블 명 달리해서 전송
